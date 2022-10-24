@@ -2,8 +2,10 @@ from flask import Flask,jsonify,request
 import pandas as pd
 import string
 import re
+import sqlite3
 
 app = Flask(__name__)
+DB_NAME = "binar.db" #this called CONSTANTS
 
 def remove_emoji_csv (data):
     return re.sub(r"\\x[A-Za-z0-9./]+"," ",data)
@@ -29,7 +31,17 @@ def clean_new_line_and_spaces(data):
 def remove_enter(data):
     return data.replace('\\n',' ')
 
+def insert_db1(dirty_text,clean_text):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO tweet (dirty_text,clean_text) values (?,?)",(dirty_text,clean_text))
+    conn.commit()
+    conn.close()
 
+def insert_db2(df):
+    conn = sqlite3.connect(DB_NAME)
+    df.to_sql('tweet_csv_1',con = conn,index =False, if_exists = 'append')
+    conn.close()
 
 @app.route('/clean_body/v1',methods = ['POST'])
 
@@ -39,6 +51,7 @@ def clean_tweet():
     clean_tweet = remove_emojis(s)
     clean_tweet = remove_punc(clean_tweet)
     clean_tweet = clean_new_line_and_spaces(clean_tweet)
+    insert_db1(s,clean_tweet)
     return jsonify({"clean_version" : clean_tweet})
 
 
@@ -50,8 +63,8 @@ def post_csv():
     df['clean_tweet'] = df.Tweet.apply(remove_emoji_csv)
     df['clean_tweet'] = df.Tweet.apply(remove_enter)
     df['clean_tweet'] = df.Tweet.apply(remove_punc)
-    print(df['clean_tweet'][2])
-    return jsonify({"clean_version" : "clean_tweet"})
+    insert_db2(df)
+    return jsonify({"clean_version" : 'success'})
 
 if __name__ == "__main__":
     app.run(debug = True,port = 1234)
