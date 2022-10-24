@@ -1,9 +1,12 @@
 from flask import Flask,jsonify,request
+import pandas as pd
 import string
 import re
 
 app = Flask(__name__)
 
+def remove_emoji_csv (data):
+    return re.sub(r"\\x[A-Za-z0-9./]+"," ",data)
 
 def remove_emojis(data):
     emoj = re.compile("["
@@ -23,6 +26,9 @@ def remove_punc(data):
 def clean_new_line_and_spaces(data):
     return ' '.join(data.split())
 
+def remove_enter(data):
+    return data.replace('\\n',' ')
+
 
 
 @app.route('/clean_body/v1',methods = ['POST'])
@@ -37,6 +43,15 @@ def clean_tweet():
 
 
 
+@app.route('/clean_file/v1',methods = ['POST'])
+def post_csv():
+    f = request.files['file']
+    df = pd.read_csv(f,encoding = "latin")
+    df['clean_tweet'] = df.Tweet.apply(remove_emoji_csv)
+    df['clean_tweet'] = df.Tweet.apply(remove_enter)
+    df['clean_tweet'] = df.Tweet.apply(remove_punc)
+    print(df['clean_tweet'][2])
+    return jsonify({"clean_version" : "clean_tweet"})
 
 if __name__ == "__main__":
     app.run(debug = True,port = 1234)
