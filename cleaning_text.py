@@ -3,9 +3,39 @@ import pandas as pd
 import string
 import re
 import sqlite3
+from flasgger import Swagger, LazyString, LazyJSONEncoder, swag_from
 
 app = Flask(__name__)
 DB_NAME = "binar.db" #this called CONSTANTS
+app.json_encoder = LazyJSONEncoder
+
+swagger_template = dict(
+info = {
+    'title': LazyString(lambda: 'cleansing text'),
+    'version': LazyString(lambda: '1'),
+    'description': LazyString(lambda: 'api swagger for cleansing text'),
+    },
+    host = LazyString(lambda: request.host)
+)
+
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'docs',
+            "route": '/docs.json',
+            "rule_filter": lambda rule: True,
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/docs/"
+}
+
+swagger = Swagger(app, template=swagger_template,             
+                  config=swagger_config)
+
 
 def remove_emoji_csv (data):
     return re.sub(r"\\x[A-Za-z0-9./]+"," ",data)
@@ -43,6 +73,7 @@ def insert_db2(df):
     df.to_sql('tweet_csv_1',con = conn,index =False, if_exists = 'append')
     conn.close()
 
+@swag_from("swagger_config_post.yml", methods=['POST'])
 @app.route('/clean_body/v1',methods = ['POST'])
 
 def clean_tweet():
@@ -55,7 +86,7 @@ def clean_tweet():
     return jsonify({"clean_version" : clean_tweet})
 
 
-
+@swag_from("swagger_config_file.yml", methods=['POST'])
 @app.route('/clean_file/v1',methods = ['POST'])
 def post_csv():
     f = request.files['file']
